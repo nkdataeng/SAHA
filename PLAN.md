@@ -23,7 +23,7 @@ Note: the CMI `rot_*` columns are orientation quaternions (w, x, y, z), not raw 
 
 ## Phase 1: prove the model works on CMI data (Nov 1 – 9)
 
-- [ ] **Nov 1:** Git set up ✅. Read this plan.
+- [ ] **Nov 1:** Git set up.
 - [ ] **Nov 2:** Install Python and Jupyter. Open `train.csv` and look at the first rows.
 - [ ] **Nov 3:** Explore: how many people, which gestures, how many examples of each, how long a gesture lasts.
 - [ ] **Nov 4:** Draw charts of the motion data for one BFRB-like gesture next to one ordinary gesture.
@@ -69,7 +69,5 @@ Note: the CMI `rot_*` columns are orientation quaternions (w, x, y, z), not raw 
 - [ ] **Demo Night, November 25.**
 
 ## Things to check
-
-- **Dataset rules:** check the Kaggle competition's data rules before showing results in public. Kaggle competition data often has limits on how it can be used.
 - **Framing:** SAHA is an awareness tool, not a medical device or treatment.
 - **Privacy:** if people test it, don't store anything that identifies them.
