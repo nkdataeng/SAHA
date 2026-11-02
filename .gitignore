@@ -1,0 +1,38 @@
+# ---- Data (never commit: large files, and Kaggle data may not be redistributed) ----
+data/
+cmi-detect-behavior-with-sensor-data/
+*.csv
+*.parquet
+*.zip
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Trained models (can be large)
+models/
+*.pkl
+*.joblib
+*.h5
+*.pt
+
+# Secrets (e.g. Kaggle API key)
+.env
+kaggle.json
+
+# ---- Editors and OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
