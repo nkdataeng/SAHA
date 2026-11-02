@@ -9,14 +9,14 @@ How to build the wearable so the model trained on the CMI dataset also works on 
 Checked by reading all of `train.csv` (November 1).
 
 - **Size:** 574,945 rows, 8,151 recordings ("sequences"), 81 people. Each recording is a transition movement followed by the gesture itself.
-- **Gestures:** 8 BFRB-like (hair pulling, scratching, pinching skin) and 10 ordinary (waving, texting, drinking, scratching your leg, and others). Each was done in 4 body positions: sitting up, leaning forward, lying on your back, lying on your side.
+- **Gestures:** 8 BFRB-like (hair pulling, scratching, pinching skin) and 10 ordinary (waving, texting, drinking, scratching your leg, and others). There are 4 body positions: sitting up, leaning forward, lying on your back, lying on your side. All 8 BFRB-like gestures were done in all 4. Ordinary gestures vary: "Text on phone" in all 4; waving, writing in the air and pulling air toward the face in all but leaning forward; drinking, glasses and the tray only sitting up; the 3 knee/leg gestures only leaning forward.
 - **Columns to use:** only 7 of the 341 columns are motion data: `acc_x/y/z` and `rot_w/x/y/z`. The other 325 (`thm_*`, `tof_*`) come from heat and distance sensors we don't have, so leave them out.
 - **Acceleration (`acc_*`):** in **m/s² with gravity included**. At rest the total is about 9.9. The largest single value is about 46 m/s² (about 4.7 g).
 - **Orientation (`rot_*`):** a unit quaternion that turns the sensor's axes into the room's axes, with **Z pointing up**. Rotating the acceleration by it puts gravity at (−0.1, 0.1, 9.6).
   - 3,692 rows have no `rot` values, so the model needs to cope with gaps.
 - **Wrist:** the device was worn on the **dominant wrist**. 71 of the 81 people are right-handed.
 - **The CMI device also had a magnetometer** (compass). Ours doesn't, so our heading (yaw) will drift over time.
-- **Sample rate:** not in the data (no timestamps). The rhythm of the waving gestures suggests roughly 10–20 Hz, but that's a rough guess. Check the Kaggle competition's Data page for the exact number.
+- **Sample rate:** not published anywhere official (checked November 1: the Data and Overview pages, the [Helios Data Visualizer](https://www.kaggle.com/competitions/cmi-detect-behavior-with-sensor-data/discussion/583118) and "Get Started Here!" discussions, and arXiv 2608.09830). Participants asked the organizers, with no public answer. **Working assumption: about 10 Hz**, because the organizers' own visualizer plays the data at 10 frames per second by default, and the rhythm of the waving gestures suggests roughly 10–20 Hz.
 
 ## Sensor chip
 
@@ -32,7 +32,7 @@ Check the text printed on the chip. It should say **MPU-6050** (often on a small
    - how fast the wrist is rotating, worked out from the change in quaternion between samples.
 
    All three can be computed the same way from CMI data and from our sensor.
-4. **Sample rate:** record at 100 Hz with a timestamp on every row. Once the CMI rate is known, downsample our recordings to match.
+4. **Sample rate:** record at 100 Hz with a timestamp on every row. Downsample to 10 Hz first, then also try 15 and 20 Hz, and keep whichever rate the model recognizes best.
 5. **Axis directions:** our sensor's x/y/z probably point differently from the CMI device's. Record a few CMI gestures, such as "Wave hello" and "Forehead - scratch" while seated. Then find the axis swap or sign flip that makes our readings look most like the CMI ones, and fix that mapping in software.
 6. **Recorder CSV columns:** `t_ms, acc_x, acc_y, acc_z, gyro_x_raw, gyro_y_raw, gyro_z_raw, rot_w, rot_x, rot_y, rot_z, label`. Gyro values are kept as raw sensor counts; the model doesn't use them.
 
