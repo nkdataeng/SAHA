@@ -1,0 +1,11 @@
+# Data and model
+pandas
+numpy
+pyarrow
+matplotlib
+scikit-learn
+jupyter
+
+# Wearable recorder and dashboard
+pyserial
+streamlit
