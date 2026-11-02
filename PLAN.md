@@ -7,40 +7,53 @@
 
 ## Goal
 
-**A working demo:** a wristband (or a stand-in for one) that notices a BFRB-like hand movement and gives a gentle vibration or on-screen alert, powered by a model trained on real wrist-sensor data.
+SAHA is a wearable that detects BFRB-like hand movements, such as those in trichotillomania, using an **ESP32 + MPU6050** sensor on the wrist.
 
-If there's time, add a small amount of user testing: 3 to 5 people try it and give feedback.
+It has three parts:
+
+1. **Sensor recorder:** read accelerometer and gyroscope data from the wearable and save it to CSV.
+2. **ML model:** train a classifier on the CMI research dataset to tell BFRB-like gestures apart from everyday ones, and evaluate it properly on held-out data.
+3. **Demo dashboard:** a Streamlit app showing the model's results and the live sensor readings, clearly separated.
 
 ### Main decision: use motion data only
 
-The dataset has five kinds of sensor data. A cheap wristband can only have the motion sensor (accelerometer and rotation). So the model should learn from **`acc_*` and `rot_*` only**. That way, what we train matches what we can build.
+The dataset has five kinds of sensor data. The MPU6050 only measures motion, so the model should learn from **`acc_*` and `rot_*` only**. That way, what we train matches what we can build.
 
-## Two tracks
+Note: the CMI `rot_*` columns are orientation quaternions (w, x, y, z), not raw gyroscope readings. The MPU6050's DMP can output a quaternion too (heading/yaw drifts, since there's no magnetometer). The recorder should save **both** raw gyro and the DMP quaternion, so we can choose later which features to match.
 
-- **Software (must have):** a model that tells BFRB-like gestures apart from ordinary ones, with honest results.
-- **Hardware (nice to have):** a board with a motion sensor on the wrist, sending data to the model and vibrating. If parts or time run out, the backup is a recorded demo showing the model working on real data.
-
-## Week 1: understand the data (Nov 1 – 7)
+## Phase 1: prove the model works on CMI data (Nov 1 – 9)
 
 - [ ] **Nov 1:** Git set up ✅. Read this plan.
 - [ ] **Nov 2:** Install Python and Jupyter. Open `train.csv` and look at the first rows.
 - [ ] **Nov 3:** Explore: how many people, which gestures, how many examples of each, how long a gesture lasts.
 - [ ] **Nov 4:** Draw charts of the motion data for one BFRB-like gesture next to one ordinary gesture.
-- [ ] **Nov 5 (Open Build):** Ask make @ mun or the sprint Slack about borrowing a board with a motion sensor (e.g. Seeed XIAO nRF52840 Sense or Arduino Nano 33 BLE Sense) and a small vibration motor.
+- [ ] **Nov 5 (Open Build):** Ask make @ mun or the sprint Slack for help with the ESP32 + MPU6050 if needed.
 - [ ] **Nov 6–7:** First simple model: BFRB-like vs. not, motion data only. Write down the score.
+- [ ] **Nov 8–9:** Improve the model. Test it on **people it has never seen** (split by `subject`), so the score is honest.
 
-**Done when:** you can explain the data in two sentences and have a first score.
+**Done when:** you can explain the data in two sentences and have an honest held-out score.
 
-## Week 2: make it work (Nov 8 – 14)
+## Phase 2: prove the wearable records good data (Nov 10 – 13)
 
-- [ ] Improve the model. Test it on **people it has never seen** (split by `subject`), so the score is honest.
-- [ ] Hardware: get the board reading motion data and printing it to the laptop.
-- [ ] Connect the pieces: board → laptop → model → alert (a vibration, a sound, or a message on screen).
+- [ ] Wire the MPU6050 to the ESP32 and print accelerometer and gyroscope readings to the laptop.
+- [ ] Write the sensor recorder: save readings (with timestamps) to CSV.
+- [ ] Check the data: steady sample rate, sensible units, no gaps. Compare a recording with CMI data for the same kind of movement.
+- [ ] Record a few labelled sessions: BFRB-like movements and ordinary ones.
 - [ ] Commit to Git every time something works.
 
-**Done when:** waving your hand does nothing, and a BFRB-like movement triggers an alert, at least most of the time.
+**Done when:** you have clean CSV recordings from the wrist that look like the CMI motion data.
 
-## Submission (Nov 15 – 18)
+## Phase 3: connect the two (Nov 14 – 16)
+
+- [ ] Run the trained model on the wearable's recordings, as an **experimental** prediction.
+- [ ] Build the Streamlit dashboard:
+  - **Model results** on CMI held-out data.
+  - **Live sensor readings** from the wearable, with the experimental prediction, clearly separated from the CMI results.
+- [ ] Write down how well the model does on your own recordings, and why it might differ from CMI.
+
+**Done when:** the dashboard shows both parts, and a BFRB-like movement on the wearable gets flagged at least some of the time.
+
+## Submission (Nov 17 – 18)
 
 - [ ] Test with 3 to 5 people if possible. Write down what worked and what didn't.
 - [ ] Update the README: the problem, how SAHA works, results, limitations.
