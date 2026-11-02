@@ -5,6 +5,8 @@ raw quaternion, whose sign can flip (q and -q are the same orientation).
 See HARDWARE.md.
 """
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -15,6 +17,11 @@ ROT = ["rot_w", "rot_x", "rot_y", "rot_z"]
 # Per-reading channels, summarised over each window
 CHANNELS = ["grav_x", "grav_y", "grav_z", "lin_x", "lin_y", "lin_z", "lin_mag", "acc_mag", "ang_speed"]
 STATS = ["mean", "std", "min", "max"]
+FEATURES = [f"{c}_{stat}" for c in CHANNELS for stat in STATS]
+
+# Sliding window, in readings. A CMI gesture part is about 31 readings long.
+WINDOW = 30
+STEP = 5
 
 
 def add_channels(seq: pd.DataFrame) -> pd.DataFrame:
@@ -46,5 +53,20 @@ def add_channels(seq: pd.DataFrame) -> pd.DataFrame:
 
 def summarise(window: pd.DataFrame) -> pd.Series:
     """Turn a window of readings (output of add_channels) into one row of features."""
-    s = window[CHANNELS].agg(STATS)
-    return pd.Series({f"{c}_{stat}": s.at[stat, c] for c in CHANNELS for stat in STATS})
+    a = window[CHANNELS].to_numpy(float)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN columns when rot is missing
+        s = np.stack([np.nanmean(a, 0), np.nanstd(a, 0, ddof=1), np.nanmin(a, 0), np.nanmax(a, 0)], axis=1)
+    return pd.Series(s.ravel(), index=FEATURES)
+
+
+def window_starts(n: int, size: int = WINDOW, step: int = STEP) -> list[int]:
+    """Start positions of sliding windows over n readings.
+
+    The last window always ends on the last reading, and there is one window if n < size.
+    """
+    last = max(n - size, 0)
+    starts = list(range(0, last + 1, step))
+    if starts[-1] != last:
+        starts.append(last)
+    return starts
