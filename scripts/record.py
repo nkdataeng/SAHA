@@ -117,7 +117,12 @@ def main() -> None:
     args = p.parse_args()
 
     out = args.out or Path("data/recordings") / f"{args.label}_{datetime.now():%Y%m%d_%H%M%S}.csv"
-    record(args.port, args.label, args.seconds, out, args.sensor)
+    try:
+        record(args.port, args.label, args.seconds, out, args.sensor)
+    except serial.SerialException as e:
+        if "denied" in str(e).lower():
+            raise SystemExit(f"{args.port} is busy. Close the Arduino Serial Monitor (or the whole Arduino IDE) and try again.")
+        raise SystemExit(f"Could not open {args.port}. Is the ESP32 plugged in? Check the port with: python -m serial.tools.list_ports")
     check(out)
 
 
