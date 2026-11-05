@@ -23,7 +23,7 @@ import serial
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from saha.features import ACC, ROT, add_channels  # noqa: E402
 
-BAUD = 230400
+BAUD = 115200
 # Both sketches send acceleration in m/s² and gyro in rad/s.
 GYRO = ["gyro_x", "gyro_y", "gyro_z"]
 WAIT_MSG = {
@@ -36,10 +36,38 @@ def columns() -> list[str]:
     return ["t_ms", *ACC, *GYRO, *ROT, "label"]
 
 
+def crc8(text: str) -> int:
+    """CRC-8 (polynomial 0x07), the same as printWithChecksum() in the sketches."""
+    crc = 0
+    for ch in text.encode(errors="replace"):
+        crc ^= ch
+        for _ in range(8):
+            crc = ((crc << 1) ^ 0x07) & 0xFF if crc & 0x80 else (crc << 1) & 0xFF
+    return crc
+
+
+def checksum_ok(line: str) -> str | None:
+    """Return the reading without its '*HH' checksum, or None if the checksum doesn't match.
+
+    The ESP32 sends a CRC-8 of everything before the '*', so a line that lost
+    or changed characters in the cable is caught here.
+    """
+    body, star, code = line.strip().rpartition("*")
+    if not star or len(code) != 2:
+        return None
+    try:
+        return body if crc8(body) == int(code, 16) else None
+    except ValueError:
+        return None
+
+
 def parse_line(line: str, label: str) -> list | None:
-    """Turn one line from the ESP32 into a CSV row, or None if it isn't a reading."""
-    parts = line.strip().split(",")
-    if len(parts) != 11 or line.startswith("#"):
+    """Turn one line from the ESP32 into a CSV row, or None if it isn't a good reading."""
+    body = checksum_ok(line)
+    if body is None:
+        return None
+    parts = body.split(",")
+    if len(parts) != 11:
         return None
     try:
         t = int(parts[0])
@@ -64,7 +92,7 @@ def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno0
         input(f"Put the sensor on your wrist, then press Enter to record '{label}' for {seconds:g} s...")
         ser.reset_input_buffer()
         out.parent.mkdir(parents=True, exist_ok=True)
-        rows = resets = 0
+        rows = resets = bad = 0
         end = time.monotonic() + seconds
         with open(out, "w", newline="") as f:
             w = csv.writer(f)
@@ -77,7 +105,11 @@ def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno0
                 if row:
                     w.writerow(row)
                     rows += 1
+                elif line.strip() and not line.startswith("#"):
+                    bad += 1
     print(f"Saved {rows} readings to {out}")
+    if bad:
+        print(f"  ! Skipped {bad} garbled line(s). A few are fine; many means a loose USB cable or a too-fast serial speed.")
     if resets:
         print(f"  ! The sensor reset {resets} time(s) during recording, so this recording has gaps.")
 

@@ -41,7 +41,7 @@ Checked by reading all of `train.csv` (November 1).
    - how fast the wrist is rotating, worked out from the change in quaternion between samples.
 
    All three can be computed the same way from CMI data and from our sensor. They also keep the MPU6050 backup usable, since its heading drifts: it has no compass, and its quaternion comes from a Mahony filter on the ESP32 that combines the raw accelerometer and gyro.
-4. **Sample rate:** record at 100 Hz with a timestamp on every row. Downsample to 10 Hz first, then also try 15 and 20 Hz, and keep whichever rate the model recognizes best.
+4. **Sample rate:** record at 50 Hz with a timestamp on every row. (100 Hz needed a 230400 serial speed, which garbled about 3 in 4 lines on our ESP32; both sketches now use 115200.) Downsample to 10 Hz first, then also try 15 and 20 Hz, and keep whichever rate the model recognizes best.
 5. **Axis directions:** our sensor's x/y/z probably point differently from the CMI device's. Record a few CMI gestures, such as "Wave hello" and "Forehead - scratch" while seated. Then find the axis swap or sign flip that makes our readings look most like the CMI ones, and fix that mapping in software.
 6. **Recorder CSV columns:** `t_ms, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, rot_w, rot_x, rot_y, rot_z, label`, with gyro in rad/s, for both sensors. The model doesn't use the gyro columns yet (CMI has no raw gyro), but they're kept for comparison.
 
@@ -76,7 +76,7 @@ Use 3V3, not 5V. If your ESP32 board has a camera, leave it unplugged: on Freeno
 2. Add ESP32 support: *Tools → Board → Boards Manager*, search **esp32**, install **esp32 by Espressif Systems**.
 3. Add the sensor library: *Tools → Manage Libraries*, search **Adafruit BNO08x**, install it, and say yes when it asks to install the libraries it depends on.
 4. Open `firmware/saha_recorder_bno085/saha_recorder_bno085.ino`. Pick **ESP32 Dev Module** and your port under *Tools*, then click **Upload**.
-5. Check it: open *Tools → Serial Monitor* at **230400** baud. You should see `# ready`, then lines of numbers that change when you move the sensor. If you see `BNO085 not found`, check the cable and see **Known issue** above. Close the Serial Monitor before recording, because only one program can use the port at a time.
+5. Check it: open *Tools → Serial Monitor* at **115200** baud. You should see `# ready`, then lines of numbers that change when you move the sensor. If you see `BNO085 not found`, check the cable and see **Known issue** above. Close the Serial Monitor before recording, because only one program can use the port at a time.
 
 *MPU6050 backup:* no library needed. Upload `firmware/saha_recorder/saha_recorder.ino`, and add `--sensor mpu6050` to the record command below. The Serial Monitor should show the chip ID, the measured acceleration scale (about 4096 counts per g on a genuine chip), `# ready`, then numbers.
 
@@ -97,7 +97,7 @@ Recordings go to `data/recordings/`, which Git ignores. After each recording the
 
 | Check | Good result |
 |---|---|
-| sample rate | about 100 Hz |
+| sample rate | about 50 Hz |
 | gaps | 0, or very few |
 | total acceleration | about 9.8 m/s² while still |
 | gravity along "up" | about +9.8 m/s², the same as CMI |

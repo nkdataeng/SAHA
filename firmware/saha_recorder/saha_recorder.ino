@@ -5,18 +5,19 @@
 // registers. No DMP and no library needed.
 // Wiring:  VCC -> 3V3, GND -> GND, SDA -> GPIO 21, SCL -> GPIO 22.
 //
-// Output, about 100 lines per second:
+// Output, about 50 lines per second (CMI is about 10, so this leaves room to resample):
 //   t_ms,ax,ay,az,gx,gy,gz,qw,qx,qy,qz
 // ax..az: acceleration in m/s² with gravity included (like CMI acc_*)
 // gx..gz: rotation speed in rad/s
 // qw..qz: orientation quaternion from a Mahony filter (no compass, so heading drifts)
+// Each reading ends in *HH, a checksum the recorder uses to drop garbled lines.
 // Lines starting with '#' are status messages.
 
 #include <Wire.h>
 
-const long BAUD = 230400;
+const long BAUD = 115200;  // 230400 garbled about 3 in 4 lines on our board
 const uint8_t ADDR = 0x68;
-const unsigned long PERIOD_US = 10000;  // 100 Hz
+const unsigned long PERIOD_US = 20000;  // 50 Hz
 const float G = 9.81f;
 const float GYRO_COUNTS_PER_DPS = 65.5f;  // ±500 °/s setting
 
@@ -109,8 +110,8 @@ void setup() {
   Serial.printf("# chip ID 0x%02X (0x68 = genuine MPU6050; others are look-alikes and work too)\n", id);
 
   if (!writeReg(0x6B, 0x01) ||  // wake up, use the gyro clock
-      !writeReg(0x19, 9) ||     // 1000 / (1 + 9) = 100 readings per second
-      !writeReg(0x1A, 0x03) ||  // smooth out noise above about 44 Hz
+      !writeReg(0x19, 19) ||    // 1000 / (1 + 19) = 50 readings per second
+      !writeReg(0x1A, 0x04) ||  // smooth out noise above about 21 Hz
       !writeReg(0x1B, 0x08) ||  // gyro ±500 °/s
       !writeReg(0x1C, 0x10)) {  // accelerometer ±8 g
     fail("# ERROR: could not set up the MPU6050.");
@@ -163,6 +164,18 @@ void loop() {
   }
   mahony(g[0], g[1], g[2], a[0], a[1], a[2], PERIOD_US / 1e6f);
 
-  Serial.printf("%lu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
-                millis(), a[0], a[1], a[2], g[0], g[1], g[2], q0, q1, q2, q3);
+  char line[128];
+  snprintf(line, sizeof line, "%lu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f",
+           millis(), a[0], a[1], a[2], g[0], g[1], g[2], q0, q1, q2, q3);
+  printWithChecksum(line);
+}
+
+// Adds "*HH": a CRC-8 of the line, so the recorder can drop garbled lines
+void printWithChecksum(const char *line) {
+  uint8_t crc = 0;
+  for (const char *p = line; *p; p++) {
+    crc ^= *p;
+    for (int b = 0; b < 8; b++) crc = (crc & 0x80) ? (crc << 1) ^ 0x07 : crc << 1;
+  }
+  Serial.printf("%s*%02X\n", line, crc);
 }
