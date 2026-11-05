@@ -43,10 +43,18 @@ bool writeReg(uint8_t reg, uint8_t value) {
   return Wire.endTransmission() == 0;
 }
 
+// The same check as the I2C scanner: does anything answer at ADDR?
+bool present() {
+  Wire.beginTransmission(ADDR);
+  return Wire.endTransmission() == 0;
+}
+
+// endTransmission(false) keeps the bus open for the read that follows. Its return
+// value is unreliable on the ESP32, so success is judged by the bytes that arrive.
 uint8_t readReg(uint8_t reg) {
   Wire.beginTransmission(ADDR);
   Wire.write(reg);
-  if (Wire.endTransmission(false) != 0) return 0xFF;
+  Wire.endTransmission(false);
   Wire.requestFrom(ADDR, (uint8_t)1);
   return Wire.available() ? Wire.read() : 0xFF;
 }
@@ -55,7 +63,7 @@ uint8_t readReg(uint8_t reg) {
 bool readRaw(int16_t acc[3], int16_t gyro[3]) {
   Wire.beginTransmission(ADDR);
   Wire.write(0x3B);
-  if (Wire.endTransmission(false) != 0) return false;
+  Wire.endTransmission(false);
   if (Wire.requestFrom(ADDR, (uint8_t)14) != 14) return false;
   uint8_t b[14];
   for (int i = 0; i < 14; i++) b[i] = Wire.read();
@@ -96,8 +104,8 @@ void setup() {
   Wire.begin(21, 22);
   Wire.setClock(100000);  // slow and reliable over loose jumper wires
 
+  if (!present()) fail("# ERROR: MPU6050 not found. Check the wiring.");
   uint8_t id = readReg(0x75);
-  if (id == 0xFF) fail("# ERROR: MPU6050 not found. Check the wiring.");
   Serial.printf("# chip ID 0x%02X (0x68 = genuine MPU6050; others are look-alikes and work too)\n", id);
 
   if (!writeReg(0x6B, 0x01) ||  // wake up, use the gyro clock
