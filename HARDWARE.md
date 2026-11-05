@@ -26,23 +26,24 @@ Checked by reading all of `train.csv` (November 1).
 
 *MPU6050 backup:* check the text printed on the chip. It should say **MPU-6050** (often on a small blue board labelled GY-521). An **MPU-3050** has a gyroscope but no accelerometer, so it can't produce the `acc_*` data and won't work.
 
+*Our GY-521 has a look-alike chip* (November 5): it answers at I2C address 0x68 but reports chip ID **0x72** instead of 0x68, so libraries that check the ID (such as Electronic Cats' `testConnection()`) refuse it, and its DMP can't be relied on. The recorder therefore reads only the raw accelerometer and gyro registers, which work on look-alikes too.
+
 **Known issue: BNO085 + ESP32 over I2C.** Adafruit lists the BNO085 as troublesome on the ESP32, because it stretches the I2C clock; newer ESP32 software handles this better. The sketch uses a slow bus (100 kHz), a long timeout, and restarts the sensor reports if the sensor resets. If you still see `BNO085 not found` or frequent `# sensor reset` lines: update the **esp32** board package in the Boards Manager, keep the cable short, and if that fails, switch to the MPU6050 backup.
 
 ## Matching the CMI data
 
 1. **Placement:** dominant wrist, on the back of the wrist like a watch face. Strap it on tightly with velcro or tape so it can't wobble. Keep the ESP32 on the table, with the cable slack, and tape the cable to the strap so a pull doesn't tug the connector. Wear it **the same way every time** (chip side up, cable toward the elbow).
 2. **Acceleration:** in m/s² with gravity included, the same as CMI. The BNO085's accelerometer report already uses these units, so nothing needs converting.
-   - *MPU6050 backup:* the DMP reports acceleration at 8192 counts per g, so `scripts/record.py` uses `raw / 8192 × 9.81`, and its quality check warns if the result looks wrong. The DMP keeps the sensor at its ±2 g setting, so very sharp movements above 2 g (about 20 m/s²) get cut off. That's rare in CMI: 99% of readings are within ±10.5 m/s².
+   - *MPU6050 backup:* the sketch sets the accelerometer to ±8 g (enough for CMI's largest readings, about 4.7 g) and converts to m/s² on the ESP32. Look-alike chips may scale differently, so at startup it measures gravity while the sensor is still and uses that as its scale.
 3. **Orientation:** the BNO085's **rotation vector** report gives a quaternion that combines the gyroscope, accelerometer and compass, which is how the Kaggle Data page describes CMI's `rot_*`. The **compass needs calibrating:** after switching on, move the sensor slowly in a figure-of-8 for a few seconds, away from laptops, magnets and metal. Even so, keep building the model on features that don't depend on heading:
    - the direction of gravity as the sensor sees it (which way the wrist is tilted),
    - acceleration with gravity removed,
    - how fast the wrist is rotating, worked out from the change in quaternion between samples.
 
-   All three can be computed the same way from CMI data and from our sensor. They also keep the MPU6050 backup usable, since its heading drifts (it gets its quaternion from the DMP, via the `MPU6050_6Axis_MotionApps20` code).
+   All three can be computed the same way from CMI data and from our sensor. They also keep the MPU6050 backup usable, since its heading drifts: it has no compass, and its quaternion comes from a Mahony filter on the ESP32 that combines the raw accelerometer and gyro.
 4. **Sample rate:** record at 100 Hz with a timestamp on every row. Downsample to 10 Hz first, then also try 15 and 20 Hz, and keep whichever rate the model recognizes best.
 5. **Axis directions:** our sensor's x/y/z probably point differently from the CMI device's. Record a few CMI gestures, such as "Wave hello" and "Forehead - scratch" while seated. Then find the axis swap or sign flip that makes our readings look most like the CMI ones, and fix that mapping in software.
-6. **Recorder CSV columns:** `t_ms, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, rot_w, rot_x, rot_y, rot_z, label`, with gyro in rad/s. The model doesn't use the gyro columns yet (CMI has no raw gyro), but they're kept for comparison.
-   - *MPU6050 backup:* the gyro columns are `gyro_x_raw, gyro_y_raw, gyro_z_raw`, in raw sensor counts.
+6. **Recorder CSV columns:** `t_ms, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, rot_w, rot_x, rot_y, rot_z, label`, with gyro in rad/s, for both sensors. The model doesn't use the gyro columns yet (CMI has no raw gyro), but they're kept for comparison.
 
 ## Wiring
 
@@ -77,7 +78,7 @@ Use 3V3, not 5V. If your ESP32 board has a camera, leave it unplugged: on Freeno
 4. Open `firmware/saha_recorder_bno085/saha_recorder_bno085.ino`. Pick **ESP32 Dev Module** and your port under *Tools*, then click **Upload**.
 5. Check it: open *Tools → Serial Monitor* at **230400** baud. You should see `# ready`, then lines of numbers that change when you move the sensor. If you see `BNO085 not found`, check the cable and see **Known issue** above. Close the Serial Monitor before recording, because only one program can use the port at a time.
 
-*MPU6050 backup:* install **MPU6050 by Electronic Cats** instead, upload `firmware/saha_recorder/saha_recorder.ino`, and add `--sensor mpu6050` to the record command below.
+*MPU6050 backup:* no library needed. Upload `firmware/saha_recorder/saha_recorder.ino`, and add `--sensor mpu6050` to the record command below. The Serial Monitor should show the chip ID, the measured acceleration scale (about 4096 counts per g on a genuine chip), `# ready`, then numbers.
 
 **2. Record**
 

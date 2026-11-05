@@ -24,39 +24,29 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from saha.features import ACC, ROT, add_channels  # noqa: E402
 
 BAUD = 230400
-# The MotionApps20 DMP packet reports acceleration at 8192 counts per g.
-# check() below warns if this looks wrong for your sensor.
-ACC_COUNTS_PER_G = 8192
-G = 9.81
-# The BNO085 already sends m/s² and rad/s; the MPU6050 sends raw counts.
-GYRO = {"bno085": ["gyro_x", "gyro_y", "gyro_z"], "mpu6050": ["gyro_x_raw", "gyro_y_raw", "gyro_z_raw"]}
+# Both sketches send acceleration in m/s² and gyro in rad/s.
+GYRO = ["gyro_x", "gyro_y", "gyro_z"]
 WAIT_MSG = {
     "bno085": "Waiting for the ESP32 (it restarts when the recorder connects)...",
     "mpu6050": "Waiting for the ESP32 (it restarts and calibrates: keep the sensor flat and still)...",
 }
 
 
-def columns(sensor: str) -> list[str]:
-    return ["t_ms", *ACC, *GYRO[sensor], *ROT, "label"]
+def columns() -> list[str]:
+    return ["t_ms", *ACC, *GYRO, *ROT, "label"]
 
 
-def parse_line(line: str, label: str, sensor: str = "bno085") -> list | None:
+def parse_line(line: str, label: str) -> list | None:
     """Turn one line from the ESP32 into a CSV row, or None if it isn't a reading."""
     parts = line.strip().split(",")
     if len(parts) != 11 or line.startswith("#"):
         return None
     try:
         t = int(parts[0])
-        if sensor == "bno085":
-            acc = [float(v) for v in parts[1:4]]
-            gyro = [float(v) for v in parts[4:7]]
-        else:
-            acc = [int(v) / ACC_COUNTS_PER_G * G for v in parts[1:4]]
-            gyro = [int(v) for v in parts[4:7]]
-        quat = [float(v) for v in parts[7:11]]
+        values = [float(v) for v in parts[1:11]]
     except ValueError:
         return None
-    return [t, *(round(v, 4) for v in acc), *gyro, *quat, label]
+    return [t, *values, label]
 
 
 def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno085") -> None:
@@ -78,12 +68,12 @@ def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno0
         end = time.monotonic() + seconds
         with open(out, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(columns(sensor))
+            w.writerow(columns())
             while time.monotonic() < end:
                 line = ser.readline().decode(errors="replace")
                 if line.startswith("# sensor reset"):
                     resets += 1
-                row = parse_line(line, label, sensor)
+                row = parse_line(line, label)
                 if row:
                     w.writerow(row)
                     rows += 1
@@ -92,7 +82,7 @@ def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno0
         print(f"  ! The sensor reset {resets} time(s) during recording, so this recording has gaps.")
 
 
-def check(path: Path, sensor: str = "bno085") -> None:
+def check(path: Path) -> None:
     """Print simple quality checks for a recording."""
     df = pd.read_csv(path)
     if len(df) < 10:
@@ -112,10 +102,7 @@ def check(path: Path, sensor: str = "bno085") -> None:
     print(f"  total acceleration:     median {np.median(acc_total):.2f} m/s² (expect about 9.8 when still)")
     print(f"  gravity along 'up':     median {np.median(up):.2f} m/s² (expect about +9.8, like CMI)")
     if not 8.5 < np.median(acc_total) < 11:
-        if sensor == "mpu6050":
-            print("  ! Acceleration scale looks off. Try ACC_COUNTS_PER_G = 16384 in scripts/record.py.")
-        else:
-            print("  ! Acceleration looks off. Was the sensor moving the whole time? Try a recording that starts still.")
+        print("  ! Acceleration looks off. Was the sensor moving the whole time? Try a recording that starts still.")
     if np.median(up) < 0:
         print("  ! The quaternion's 'up' points down compared with CMI. Note this for the axis mapping.")
 
@@ -131,7 +118,7 @@ def main() -> None:
 
     out = args.out or Path("data/recordings") / f"{args.label}_{datetime.now():%Y%m%d_%H%M%S}.csv"
     record(args.port, args.label, args.seconds, out, args.sensor)
-    check(out, args.sensor)
+    check(out)
 
 
 if __name__ == "__main__":
