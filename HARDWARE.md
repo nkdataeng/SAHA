@@ -104,6 +104,27 @@ Recordings go to `data/recordings/`, which Git ignores. After each recording the
 
 **What to record:** a few of each, seated, using CMI gesture names as labels, e.g. `wave_hello`, `text_on_phone`, `forehead_scratch`, `eyebrow_pull_hair` (pretend; don't actually pull hair). Start each recording with your hand resting for a few seconds, then do the gesture, like the CMI recordings.
 
+## Personal calibration (November 9)
+
+**Problem:** the model trained on CMI caught **none** of 14 BFRB-like recordings from our wristband (MPU6050 on the back of the right wrist, chip side down, wires toward the elbow). Our sensor's axes point differently from the Helios watch's: during each gesture, gravity pointed almost the opposite way to CMI's.
+
+**Axis mapping:** rotating our axes into CMI's (`TO_CMI` in `saha/personal.py`: CMI x = −our y, CMI y = +our z, CMI z = −our x) brought gravity close to CMI's for every gesture. A second mapping (CMI x = −our x, y = +our z, z = +our y) fits almost as well, and the two halves of our recordings each preferred a different one; both agree on CMI y = our z.
+
+**Results** (26 recordings: 4 hair-pulling/scratching gestures and 3 ordinary ones, 3–4 times each, plus a still one; each recording judged by a model that never saw its round):
+
+| Model | BFRB-like caught | Ordinary with a false alarm |
+|---|---|---|
+| CMI model, our axes as recorded | 0% | 9% |
+| CMI model, axes mapped | 43% | 55% (texting) |
+| CMI + our recordings, weighted ×30 to ×300 | 100% | 27–45% (texting) |
+| **Our recordings only** (`scripts/train_personal.py`) | **100%** | **0%** |
+
+Texting kept triggering alerts whenever CMI data was included: some of CMI's 81 people held their wrists during BFRBs the way we hold ours while texting. Our own recordings separate the two mainly by wrist tilt.
+
+**To retrain** after recording more: `python scripts/train_personal.py`. It prints the fair test and saves `models/personal_model.joblib` (not committed).
+
+**Limits:** one person, one session, acted gestures. The fair test holds out rounds from the same day, so it doesn't show how the model does on another day or another person. Record a fresh set on a different day to check, and treat each new wearer as needing their own short calibration session.
+
 ## Sources
 
 - [Deep Multimodal Wearable Sensor Fusion for Detection of BFRBs (arXiv 2608.09830)](https://arxiv.org/pdf/2608.09830)
