@@ -4,7 +4,7 @@ A wrist-worn awareness prototype for body-focused repetitive behaviors (BFRBs), 
 
 SAHA is an awareness tool, not a medical device or treatment.
 
-Built for the T-Minus30 sprint by Genesis. See [PLAN.md](PLAN.md) for the plan and [HARDWARE.md](HARDWARE.md) for how to build the wearable.
+Built for the T-Minus30 sprint by Genesis. See [PLAN.md](PLAN.md) for the plan, [HARDWARE.md](HARDWARE.md) for how to build the wearable, and [docs/HOW_SAHA_WORKS.md](docs/HOW_SAHA_WORKS.md) for a plain-language explanation of the sensor, the data and the models.
 
 ## Data
 
