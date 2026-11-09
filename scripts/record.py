@@ -89,7 +89,7 @@ def reset_esp32(ser) -> None:
     ser.rts = False
 
 
-def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno085") -> None:
+def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno085", rest: float = 3) -> None:
     with serial.serial_for_url(port, BAUD, timeout=2) as ser:
         print(WAIT_MSG[sensor])
         reset_esp32(ser)
@@ -115,11 +115,17 @@ def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno0
         ser.reset_input_buffer()
         out.parent.mkdir(parents=True, exist_ok=True)
         rows = resets = bad = 0
-        end = time.monotonic() + seconds
+        start = time.monotonic()
+        end = start + seconds
+        go = rest > 0
+        print(f"Recording. Rest your hand for {rest:g} seconds..." if rest > 0 else "Recording. Do the gesture now!")
         with open(out, "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(columns())
             while time.monotonic() < end:
+                if go and time.monotonic() - start >= rest:
+                    print(f"\a>>> NOW: do the gesture ({label}) until it says Done <<<")
+                    go = False
                 line = ser.readline().decode(errors="replace")
                 if line.startswith("# sensor reset"):
                     resets += 1
@@ -129,6 +135,7 @@ def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno0
                     rows += 1
                 elif line.strip() and not line.startswith("#"):
                     bad += 1
+    print("Done. You can stop.")
     print(f"Saved {rows} readings to {out}")
     if bad:
         print(f"  ! Skipped {bad} garbled line(s). A few are fine; many means a loose USB cable or a too-fast serial speed.")
@@ -166,13 +173,14 @@ def main() -> None:
     p.add_argument("--port", required=True, help="serial port, e.g. COM3")
     p.add_argument("--label", required=True, help="what you're doing, e.g. wave_hello or forehead_scratch")
     p.add_argument("--seconds", type=float, default=20)
+    p.add_argument("--rest", type=float, default=3, help="seconds of resting before the 'NOW' prompt (0 = start straight away)")
     p.add_argument("--sensor", choices=["bno085", "mpu6050"], default="bno085", help="which sketch is on the ESP32")
     p.add_argument("--out", type=Path, help="CSV path (default: data/recordings/<label>_<date-time>.csv)")
     args = p.parse_args()
 
     out = args.out or Path("data/recordings") / f"{args.label}_{datetime.now():%Y%m%d_%H%M%S}.csv"
     try:
-        record(args.port, args.label, args.seconds, out, args.sensor)
+        record(args.port, args.label, args.seconds, out, args.sensor, args.rest)
     except serial.SerialException as e:
         if "denied" in str(e).lower():
             raise SystemExit(f"{args.port} is busy. Close the Arduino Serial Monitor (or the whole Arduino IDE) and try again.")
