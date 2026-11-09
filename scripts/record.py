@@ -77,17 +77,39 @@ def parse_line(line: str, label: str) -> list | None:
     return [t, *values, label]
 
 
+def reset_esp32(ser) -> None:
+    """Restart the ESP32 the way the Arduino IDE does: pulse EN low through RTS.
+
+    DTR stays off so the ESP32 boots normally instead of waiting for an upload.
+    Opening the port alone doesn't always restart it.
+    """
+    ser.dtr = False
+    ser.rts = True
+    time.sleep(0.1)
+    ser.rts = False
+
+
 def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno085") -> None:
     with serial.serial_for_url(port, BAUD, timeout=2) as ser:
         print(WAIT_MSG[sensor])
+        reset_esp32(ser)
+        readings = 0
         while True:
             line = ser.readline().decode(errors="replace").strip()
-            if line:
-                print("  ", line)
             if line == "# ready":
+                print("  ", line)
                 break
             if line.startswith("# ERROR"):
+                print("  ", line)
                 raise SystemExit("The ESP32 reported an error (see above). Check the wiring and try again.")
+            if parse_line(line, label):
+                # Readings without "# ready": the ESP32 didn't restart, but it's already running
+                readings += 1
+                if readings >= 50:
+                    print("   (the ESP32 was already running, so it keeps its earlier calibration)")
+                    break
+            elif line.startswith("#"):
+                print("  ", line)  # status messages only; start-up noise is skipped
 
         input(f"Put the sensor on your wrist, then press Enter to record '{label}' for {seconds:g} s...")
         ser.reset_input_buffer()
