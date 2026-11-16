@@ -6,6 +6,16 @@ SAHA is an awareness tool, not a medical device or treatment.
 
 Built for the T-Minus30 sprint by Genesis. See [PLAN.md](PLAN.md) for the plan, [HARDWARE.md](HARDWARE.md) for how to build the wearable, and [docs/HOW_SAHA_WORKS.md](docs/HOW_SAHA_WORKS.md) for a plain-language explanation of the sensor, the data and the models.
 
+## Live dashboard
+
+Shows the wristband's movement, the model's BFRB-like level, and a gentle "Did you notice your hand?" prompt when BFRB-like movement lasts about 10 seconds or comes back 3 times within 5 minutes (both adjustable). From the project folder, with the Arduino Serial Monitor closed:
+
+```
+.\.venv\Scripts\streamlit run dashboard.py
+```
+
+Pick **Wristband (USB)** and the ESP32's port, or **Replay recordings** to test without the wristband. It needs the personal model (`python scripts/train_personal.py`). Prompts and answers are saved to `data/sessions/` on this computer only.
+
 ## Data
 
 This project uses the Child Mind Institute "Detect Behavior with Sensor Data" dataset from Kaggle. The data is not stored in this repository. Download it from [the competition page](https://www.kaggle.com/competitions/cmi-detect-behavior-with-sensor-data/data) and place it in `data/`.
