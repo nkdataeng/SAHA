@@ -21,11 +21,9 @@ import pandas as pd
 import serial
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from saha.features import ACC, ROT, add_channels  # noqa: E402
+from saha.features import ACC, add_channels  # noqa: E402
+from saha.wristband import BAUD, READING, crc8, parse_reading, reset_esp32  # noqa: E402, F401
 
-BAUD = 115200
-# Both sketches send acceleration in m/s² and gyro in rad/s.
-GYRO = ["gyro_x", "gyro_y", "gyro_z"]
 WAIT_MSG = {
     "bno085": "Waiting for the ESP32 (it restarts when the recorder connects)...",
     "mpu6050": "Waiting for the ESP32 (it restarts and calibrates: keep the sensor flat and still)...",
@@ -33,60 +31,13 @@ WAIT_MSG = {
 
 
 def columns() -> list[str]:
-    return ["t_ms", *ACC, *GYRO, *ROT, "label"]
-
-
-def crc8(text: str) -> int:
-    """CRC-8 (polynomial 0x07), the same as printWithChecksum() in the sketches."""
-    crc = 0
-    for ch in text.encode(errors="replace"):
-        crc ^= ch
-        for _ in range(8):
-            crc = ((crc << 1) ^ 0x07) & 0xFF if crc & 0x80 else (crc << 1) & 0xFF
-    return crc
-
-
-def checksum_ok(line: str) -> str | None:
-    """Return the reading without its '*HH' checksum, or None if the checksum doesn't match.
-
-    The ESP32 sends a CRC-8 of everything before the '*', so a line that lost
-    or changed characters in the cable is caught here.
-    """
-    body, star, code = line.strip().rpartition("*")
-    if not star or len(code) != 2:
-        return None
-    try:
-        return body if crc8(body) == int(code, 16) else None
-    except ValueError:
-        return None
+    return [*READING, "label"]
 
 
 def parse_line(line: str, label: str) -> list | None:
     """Turn one line from the ESP32 into a CSV row, or None if it isn't a good reading."""
-    body = checksum_ok(line)
-    if body is None:
-        return None
-    parts = body.split(",")
-    if len(parts) != 11:
-        return None
-    try:
-        t = int(parts[0])
-        values = [float(v) for v in parts[1:11]]
-    except ValueError:
-        return None
-    return [t, *values, label]
-
-
-def reset_esp32(ser) -> None:
-    """Restart the ESP32 the way the Arduino IDE does: pulse EN low through RTS.
-
-    DTR stays off so the ESP32 boots normally instead of waiting for an upload.
-    Opening the port alone doesn't always restart it.
-    """
-    ser.dtr = False
-    ser.rts = True
-    time.sleep(0.1)
-    ser.rts = False
+    reading = parse_reading(line)
+    return None if reading is None else [*reading, label]
 
 
 def record(port: str, label: str, seconds: float, out: Path, sensor: str = "bno085", rest: float = 3) -> None:
