@@ -60,6 +60,20 @@ def summarise(window: pd.DataFrame) -> pd.Series:
     return pd.Series(s.ravel(), index=FEATURES)
 
 
+def mirror(features: pd.DataFrame, axis: str = "x") -> pd.DataFrame:
+    """Mirror window features across one sensor axis, e.g. left-wrist data -> right-wrist.
+
+    A mirror flips the sign of that axis's tilt and movement: the mean changes sign and
+    min/max swap. Spread, totals and turning speed don't change. In the CMI data, mirroring
+    left-handed people on x made their tilts match right-handed people's.
+    """
+    out = features.copy()
+    for ch in (f"grav_{axis}", f"lin_{axis}"):
+        out[f"{ch}_mean"] = -features[f"{ch}_mean"]
+        out[f"{ch}_min"], out[f"{ch}_max"] = -features[f"{ch}_max"], -features[f"{ch}_min"]
+    return out
+
+
 def window_starts(n: int, size: int = WINDOW, step: int = STEP) -> list[int]:
     """Start positions of sliding windows over n readings.
 
