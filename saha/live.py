@@ -209,7 +209,7 @@ class Monitor:
                 self._log("prompt", reason, prob)
 
     def respond(self, answer: str) -> None:
-        """Record the wearer's answer to a prompt ('noticed' or 'just an itch') and clear it.
+        """Record the wearer's answer to a prompt (e.g. 'take a break' or 'okay') and clear it.
 
         The quiet time restarts from the answer, so the next prompt can't follow straight after.
         """

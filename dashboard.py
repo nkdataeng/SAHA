@@ -1,4 +1,4 @@
-"""SAHA live dashboard: live wristband readings, the BFRB-like level, and a gentle prompt.
+"""SAHA live dashboard: live wristband readings, the BFRB-like level, and a gentle "Hey, is everything okay?" prompt.
 
 Run from the project folder (close the Arduino Serial Monitor first):
     .\\.venv\\Scripts\\streamlit run dashboard.py
@@ -99,14 +99,15 @@ def live() -> None:
     prompt = snap["prompt"]
     if prompt:
         with st.container(border=True):
-            st.markdown("## Did you notice your hand?")
-            st.write(REASONS.get(prompt["reason"], ""))
-            yes, itch = st.columns(2)
-            if yes.button("Yes, thanks", type="primary", use_container_width=True):
-                monitor.respond("noticed")
+            st.markdown("## Hey, is everything okay?")
+            st.markdown("#### Would you like to take a break?")
+            st.caption(REASONS.get(prompt["reason"], ""))
+            brk, okay = st.columns(2)
+            if brk.button("Take a break", type="primary", use_container_width=True):
+                monitor.respond("take a break")
                 st.rerun(scope="fragment")
-            if itch.button("Just an itch", use_container_width=True):
-                monitor.respond("just an itch")
+            if okay.button("I'm okay", use_container_width=True):
+                monitor.respond("okay")
                 st.rerun(scope="fragment")
 
     scores, now = snap["scores"], snap["t"]

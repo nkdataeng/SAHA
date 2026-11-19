@@ -8,7 +8,7 @@ Built for the T-Minus30 sprint by Genesis. See [PLAN.md](PLAN.md) for the plan, 
 
 ## Live dashboard
 
-Shows the wristband's movement, the model's BFRB-like level, and a gentle "Did you notice your hand?" prompt when BFRB-like movement lasts about 10 seconds or comes back 3 times within 5 minutes (both adjustable). From the project folder, with the Arduino Serial Monitor closed:
+Shows the wristband's movement, the model's BFRB-like level, and a gentle "Hey, is everything okay? Would you like to take a break?" prompt when BFRB-like movement lasts about 10 seconds or comes back 3 times within 5 minutes (both adjustable). From the project folder, with the Arduino Serial Monitor closed:
 
 ```
 .\.venv\Scripts\streamlit run dashboard.py
