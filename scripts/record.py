@@ -126,10 +126,13 @@ def main() -> None:
     p.add_argument("--seconds", type=float, default=20)
     p.add_argument("--rest", type=float, default=3, help="seconds of resting before the 'NOW' prompt (0 = start straight away)")
     p.add_argument("--sensor", choices=["bno085", "mpu6050"], default="bno085", help="which sketch is on the ESP32")
-    p.add_argument("--out", type=Path, help="CSV path (default: data/recordings/<label>_<date-time>.csv)")
+    p.add_argument("--wrist", choices=["right", "left"], default="right",
+                   help="which wrist the sensor is on; left-wrist recordings are mirrored, so they're kept in data/recordings/left/")
+    p.add_argument("--out", type=Path, help="CSV path (default: data/recordings[/left]/<label>_<date-time>.csv)")
     args = p.parse_args()
 
-    out = args.out or Path("data/recordings") / f"{args.label}_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    folder = Path("data/recordings") / ("left" if args.wrist == "left" else "")
+    out = args.out or folder / f"{args.label}_{datetime.now():%Y%m%d_%H%M%S}.csv"
     try:
         record(args.port, args.label, args.seconds, out, args.sensor, args.rest)
     except serial.SerialException as e:
