@@ -18,7 +18,8 @@ from saha.features import ACC, ROT, FEATURES, WINDOW, STEP, add_channels, summar
 
 # Our MPU6050 axes -> CMI axes: CMI x = -our y, CMI y = +our z, CMI z = -our x.
 # Found on 9 Nov by matching where gravity points during each gesture, with the
-# sensor worn chip side down on the back of the right wrist, wires toward the elbow.
+# sensor on the back of the right wrist, chip side up, the board standing at roughly 45 degrees
+# on its pins (taped to the elastic band), pin header and wires toward the elbow.
 # Wear it differently (or switch to the BNO085) and this needs finding again.
 TO_CMI = np.array([[0, -1, 0], [0, 0, 1], [-1, 0, 0]], float)
 

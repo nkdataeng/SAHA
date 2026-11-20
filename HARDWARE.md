@@ -106,7 +106,7 @@ Recordings go to `data/recordings/`, which Git ignores. After each recording the
 
 ## Personal calibration (November 9)
 
-**Problem:** the model trained on CMI caught **none** of 14 BFRB-like recordings from our wristband (MPU6050 on the back of the right wrist, chip side down, wires toward the elbow). Our sensor's axes point differently from the Helios watch's: during each gesture, gravity pointed almost the opposite way to CMI's.
+**Problem:** the model trained on CMI caught **none** of 14 BFRB-like recordings from our wristband (MPU6050 on the back of the right wrist, chip side up, the board standing at roughly 45° on its pins, pin header and wires toward the elbow; at rest, gravity in the sensor's axes was about (0.52, −0.56, 0.65), which fits that tilt). Our sensor's axes point differently from the Helios watch's: during each gesture, gravity pointed almost the opposite way to CMI's.
 
 **Axis mapping:** rotating our axes into CMI's (`TO_CMI` in `saha/personal.py`: CMI x = −our y, CMI y = +our z, CMI z = −our x) brought gravity close to CMI's for every gesture. A second mapping (CMI x = −our x, y = +our z, z = +our y) fits almost as well, and the two halves of our recordings each preferred a different one; both agree on CMI y = our z.
 

@@ -140,7 +140,7 @@ When the CMI model was run on SAHA's own recordings, it **caught none of the 14 
 ### The reasons
 
 1. **Different axes.** SAHA's sensor's x, y, z point differently from the research watch's. During each gesture, gravity pointed almost the **opposite** way in SAHA's data compared with CMI's (a distance of 1.65, where 0 is identical and 2 is opposite). The model was effectively seeing "upside-down" data.
-2. **A different sensor, worn differently.** A look-alike MPU6050, worn chip side down, versus the Helios watch's BNO085 with a compass.
+2. **A different sensor, worn differently.** A look-alike MPU6050, standing at an angle on its pins on an elastic band, versus the Helios watch's BNO085 with a compass.
 3. **Different people.** The model learned how 81 participants held their wrists. One person's habits, such as how they hold a phone, can sit in between.
 
 ### What was tried
