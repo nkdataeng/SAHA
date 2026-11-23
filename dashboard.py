@@ -3,7 +3,9 @@
 Run from the project folder (close the Arduino Serial Monitor first):
     .\\.venv\\Scripts\\streamlit run dashboard.py
 
-It uses the personal model (models/personal_model.joblib, made by scripts/train_personal.py).
+It uses the personal model (models/personal_model.joblib, made by scripts/train_personal.py),
+or the mixed CMI + personal model (models/mixed_model.joblib, made by scripts/train_mixed.py)
+when you pick it in the sidebar.
 "Replay recordings" plays saved recordings instead of the wristband: for testing, or as a
 backup at a demo. Prompts and answers are saved to data/sessions/ on this computer only.
 """
@@ -18,6 +20,8 @@ from serial.tools import list_ports
 from saha.live import Detector, Monitor, PromptSettings
 
 MODEL = Path("models/personal_model.joblib")
+MODELS = {"Personal (my recordings only)": MODEL,
+          "Mixed (CMI's 81 people + my recordings)": Path("models/mixed_model.joblib")}
 RECORDINGS = Path("data/recordings")
 DEMO = ("still_", "text_on_phone_", "eyebrow_pull_hair_", "wave_hello_", "forehead_scratch_")
 
@@ -31,7 +35,8 @@ if not MODEL.exists():
 
 @st.cache_resource
 def get_monitor() -> Monitor:
-    return Monitor(Detector(MODEL), PromptSettings())
+    mixed = MODELS["Mixed (CMI's 81 people + my recordings)"]
+    return Monitor(Detector(mixed if mixed.exists() else MODEL), PromptSettings())
 
 
 monitor = get_monitor()
@@ -73,7 +78,16 @@ with st.sidebar:
     settings.threshold = st.slider("Counts as BFRB-like from this model level", 0.3, 0.9, settings.threshold, 0.05)
     if st.button("Show a test prompt", use_container_width=True):
         monitor.test_prompt()
-    st.caption(f"Model: personal model, trained on {monitor.detector.trained_on} recordings.")
+
+    st.header("Model")
+    available = {name: path for name, path in MODELS.items() if path.exists()}
+    current = next((n for n, p in available.items() if p == monitor.detector.path), next(iter(available)))
+    choice = st.radio("Recognise movements with", list(available), index=list(available).index(current),
+                      disabled=monitor.running, help="Stop first to switch.")
+    if available[choice] != monitor.detector.path:
+        monitor.detector = Detector(available[choice])
+    st.caption(f"Trained on {monitor.detector.trained_on} of my recordings"
+               + (" plus the CMI data." if "Mixed" in choice else "."))
 
 # ---------- main page ----------
 st.title("SAHA")

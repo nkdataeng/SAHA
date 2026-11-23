@@ -30,6 +30,7 @@ class Detector:
 
     def __init__(self, model_path: Path):
         saved = joblib.load(model_path)
+        self.path = Path(model_path)
         self.model, self.features = saved["model"], saved["features"]
         self.window, self.every = saved["window"], saved.get("every", 5)
         self.to_cmi = saved.get("to_cmi")
