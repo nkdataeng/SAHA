@@ -73,7 +73,12 @@ with st.sidebar:
     st.header("Prompt settings")
     settings.prompt_after = st.slider("Prompt after this many seconds of BFRB-like movement", 3, 30,
                                       int(settings.prompt_after))
-    settings.repeat_count = st.slider("...or after this many episodes within 5 minutes", 2, 6, settings.repeat_count)
+    settings.gap = st.slider("Pauses allowed inside one episode (seconds), e.g. looking at the hair", 1, 15,
+                             int(settings.gap))
+    settings.repeat_on = st.checkbox("Also prompt for several short episodes", value=settings.repeat_on,
+                                     help="Off: short hair play never prompts, only continuous movement does.")
+    settings.repeat_count = st.slider("...after this many episodes within 5 minutes", 2, 6, settings.repeat_count,
+                                      disabled=not settings.repeat_on)
     settings.quiet = st.slider("Quiet time after a prompt (seconds)", 10, 300, int(settings.quiet), step=10)
     settings.threshold = st.slider("Counts as BFRB-like from this model level", 0.3, 0.9, settings.threshold, 0.05)
     if st.button("Show a test prompt", use_container_width=True):
@@ -93,6 +98,16 @@ with st.sidebar:
 st.title("SAHA")
 st.caption("A wrist-worn awareness prototype for body-focused repetitive behaviors. "
            "An awareness tool, not a medical device.")
+
+# For testing: tap what you're doing now. Saved with every model level in data/sessions/levels_YYYYMMDD.csv.
+ACTIVITIES = ["Waving hello", "Texting", "Hair pulling", "Skin picking"]
+st.markdown("**For testing: what are you doing now?**")
+for col, activity in zip(st.columns(len(ACTIVITIES)), ACTIVITIES):
+    if col.button(activity, use_container_width=True,
+                  type="primary" if monitor.activity == activity else "secondary"):
+        monitor.note(activity)
+        st.rerun()
+st.caption(f"Marked: {monitor.activity or 'nothing yet'}. The time and model level are noted twice a second.")
 
 REASONS = {
     "long": "Your hand has been making a BFRB-like movement for a while.",

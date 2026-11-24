@@ -52,12 +52,14 @@ class Detector:
 
 @dataclass
 class PromptSettings:
-    threshold: float = 0.5        # a window counts as BFRB-like at this probability or above
-    prompt_after: float = 10.0    # seconds of BFRB-like movement before a prompt
-    gap: float = 2.5              # short breaks allowed inside one episode
+    # Defaults tested live on 23 Nov: hair pulling and skin picking prompted, texting and waving didn't
+    threshold: float = 0.7        # a window counts as BFRB-like at this probability or above
+    prompt_after: float = 15.0    # seconds of BFRB-like movement before a prompt
+    gap: float = 5.0              # pauses allowed inside one episode (e.g. looking at the pulled hair)
+    repeat_on: bool = False       # also prompt for several short episodes? (off: only continuous movement prompts)
     repeat_count: int = 3         # ...or this many episodes...
     repeat_within: float = 300.0  # ...within this many seconds
-    quiet: float = 120.0          # no new prompt for this long after one
+    quiet: float = 10.0           # no new prompt for this long after one (testing; 120 s for everyday use)
 
 
 class PromptRule:
@@ -92,9 +94,10 @@ class PromptRule:
 
         if t < self.quiet_until:
             return None
-        if self.episode_start is not None and t - self.episode_start >= s.prompt_after:
+        # "long" only while the movement is BFRB-like right now (not in a short dip after it)
+        if self.episode_start is not None and prob >= s.threshold and t - self.episode_start >= s.prompt_after:
             reason = "long"
-        elif len(self.recent) >= s.repeat_count:
+        elif s.repeat_on and len(self.recent) >= s.repeat_count:
             reason = "repeated"
         else:
             return None
@@ -117,6 +120,7 @@ class Monitor:
         self.prompt = None                              # dict(t, reason, prob) while a prompt is showing
         self.source, self.error, self.t = None, None, 0.0
         self.received = 0
+        self.activity = ""                              # what the wearer says they're doing (dashboard buttons)
         self._stop = threading.Event()
         self._thread = None
         self._lock = threading.Lock()
@@ -208,6 +212,13 @@ class Monitor:
             if reason and self.prompt is None:
                 self.prompt = dict(t=t, reason=reason, prob=prob)
                 self._log("prompt", reason, prob)
+            self._log_level(prob)
+
+    def note(self, activity: str) -> None:
+        """The wearer marks what they're doing now; saved with every level from now on."""
+        with self._lock:
+            self.activity = activity
+            self._log("note", activity, float("nan"))
 
     def respond(self, answer: str) -> None:
         """Record the wearer's answer to a prompt (e.g. 'take a break' or 'okay') and clear it.
@@ -241,3 +252,15 @@ class Monitor:
             if new:
                 w.writerow(["time", "event", "detail", "probability", "source"])
             w.writerow([f"{datetime.now():%H:%M:%S}", event, detail, f"{prob:.2f}", self.source])
+
+    def _log_level(self, prob: float) -> None:
+        """Every score (about 2 a second) goes to data/sessions/levels_YYYYMMDD.csv, to check tests afterwards."""
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        path = self.log_dir / f"levels_{datetime.now():%Y%m%d}.csv"
+        new = not path.exists()
+        with open(path, "a", newline="") as f:
+            w = csv.writer(f)
+            if new:
+                w.writerow(["time", "level", "above_line", "episode_s", "doing", "source"])
+            w.writerow([f"{datetime.now():%H:%M:%S.%f}"[:-4], f"{prob:.2f}", int(prob >= self.settings.threshold),
+                        f"{self.rule.episode_seconds(self.t):.1f}", self.activity, self.source])
